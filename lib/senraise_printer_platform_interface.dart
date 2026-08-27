@@ -26,6 +26,10 @@ abstract class SenraisePrinterPlatform extends PlatformInterface {
     _instance = instance;
   }
 
+  Future<bool> isServiceAvailable() {
+    throw UnimplementedError('isServiceAvailable() has not been implemented.');
+  }
+
   Future<String?> getServiceVersion() {
     throw UnimplementedError('getServiceVersion() has not been implemented.');
   }

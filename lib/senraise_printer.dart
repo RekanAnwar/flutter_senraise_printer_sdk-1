@@ -4,6 +4,10 @@ import 'dart:typed_data';
 import 'senraise_printer_platform_interface.dart';
 
 class SenraisePrinter {
+  Future<bool> isServiceAvailable() {
+    return SenraisePrinterPlatform.instance.isServiceAvailable();
+  }
+
   Future<String?> getServiceVersion() {
     return SenraisePrinterPlatform.instance.getServiceVersion();
   }

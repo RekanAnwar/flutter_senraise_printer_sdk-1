@@ -7,8 +7,8 @@ import android.content.ServiceConnection;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.os.IBinder;
-import android.os.RemoteException;
 import android.util.Log;
+import android.content.pm.PackageManager;
 
 import androidx.annotation.NonNull;
 
@@ -25,12 +25,16 @@ import recieptservice.com.recieptservice.PrinterInterface;
  * SenraisePrinterPlugin
  */
 public class SenraisePrinterPlugin implements FlutterPlugin, MethodCallHandler {
+    private static final String RECEIPT_SERVICE_PACKAGE = "recieptservice.com.recieptservice";
+    private static final String RECEIPT_SERVICE_CLASS = "recieptservice.com.recieptservice.service.PrinterService";
     /// The MethodChannel that will the communication between Flutter and native Android
     ///
     /// This local reference serves to register the plugin with the Flutter Engine and unregister it
     /// when the Flutter Engine is detached from the Activity
     private MethodChannel channel;
     PrinterInterface printerInterface;
+    private FlutterPluginBinding pluginBinding;
+    private boolean isBound;
 
 
     ServiceConnection serviceConnection = new ServiceConnection() {
@@ -47,10 +51,8 @@ public class SenraisePrinterPlugin implements FlutterPlugin, MethodCallHandler {
 
     @Override
     public void onAttachedToEngine(@NonNull FlutterPluginBinding flutterPluginBinding) {
-        Intent intent = new Intent();
-        intent.setClassName("recieptservice.com.recieptservice", "recieptservice.com.recieptservice.service.PrinterService");
-        flutterPluginBinding.getApplicationContext().startService(intent);
-        flutterPluginBinding.getApplicationContext().bindService(intent, serviceConnection, Service.BIND_AUTO_CREATE);
+        pluginBinding = flutterPluginBinding;
+        bindPrinterServiceIfAvailable();
         channel = new MethodChannel(flutterPluginBinding.getBinaryMessenger(), "senraise_printer");
         channel.setMethodCallHandler(this);
     }
@@ -58,9 +60,12 @@ public class SenraisePrinterPlugin implements FlutterPlugin, MethodCallHandler {
     @Override
     public void onMethodCall(@NonNull MethodCall call, @NonNull Result result) {
         try {
-            if (call.method.equals("getPlatformVersion")) {
-                printerInterface.printEpson(call.argument("data"));
+            if (call.method.equals("isServiceAvailable")) {
+                result.success(isPrinterAvailable());
+            } else if (call.method.equals("getPlatformVersion")) {
                 result.success("Android " + android.os.Build.VERSION.RELEASE);
+            } else if (!ensurePrinterReady(result)) {
+                return;
             } else if (call.method.equals("printEpson")) {
                 printerInterface.printEpson(call.argument("data"));
                 result.success("printEpson success");
@@ -116,7 +121,56 @@ public class SenraisePrinterPlugin implements FlutterPlugin, MethodCallHandler {
 
     @Override
     public void onDetachedFromEngine(@NonNull FlutterPluginBinding binding) {
-        binding.getApplicationContext().unbindService(serviceConnection);
+        if (isBound) {
+            binding.getApplicationContext().unbindService(serviceConnection);
+            isBound = false;
+        }
+        printerInterface = null;
         channel.setMethodCallHandler(null);
+    }
+
+    private boolean ensurePrinterReady(@NonNull Result result) {
+        bindPrinterServiceIfAvailable();
+
+        if (printerInterface == null) {
+            result.error("printer_unavailable", "Senraise printer service is not available on this device", null);
+            return false;
+        }
+
+        return true;
+    }
+
+    private boolean isPrinterAvailable() {
+        return hasPrinterService() && printerInterface != null;
+    }
+
+    private boolean hasPrinterService() {
+        if (pluginBinding == null) {
+            return false;
+        }
+
+        Intent intent = new Intent();
+        intent.setClassName(RECEIPT_SERVICE_PACKAGE, RECEIPT_SERVICE_CLASS);
+        PackageManager packageManager = pluginBinding.getApplicationContext().getPackageManager();
+        return packageManager.resolveService(intent, 0) != null;
+    }
+
+    private void bindPrinterServiceIfAvailable() {
+        if (pluginBinding == null || isBound || !hasPrinterService()) {
+            return;
+        }
+
+        Intent intent = new Intent();
+        intent.setClassName(RECEIPT_SERVICE_PACKAGE, RECEIPT_SERVICE_CLASS);
+
+        try {
+            pluginBinding.getApplicationContext().startService(intent);
+            isBound = pluginBinding.getApplicationContext()
+                    .bindService(intent, serviceConnection, Service.BIND_AUTO_CREATE);
+        } catch (Exception e) {
+            Log.e("SenraisePrinter", "Failed to bind printer service", e);
+            isBound = false;
+            printerInterface = null;
+        }
     }
 }

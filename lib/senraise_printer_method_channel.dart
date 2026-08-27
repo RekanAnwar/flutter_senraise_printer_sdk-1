@@ -12,6 +12,12 @@ class MethodChannelSenraisePrinter extends SenraisePrinterPlatform {
   final methodChannel = const MethodChannel('senraise_printer');
 
   @override
+  Future<bool> isServiceAvailable() async {
+    return await methodChannel.invokeMethod<bool>('isServiceAvailable') ??
+        false;
+  }
+
+  @override
   Future<String?> getServiceVersion() async {
     final version =
         await methodChannel.invokeMethod<String>('getServiceVersion');
