@@ -1,17 +1,6 @@
 group 'com.senraise.senraise_printer'
 version '1.0'
 
-buildscript {
-    repositories {
-        google()
-        mavenCentral()
-    }
-
-    dependencies {
-        classpath 'com.android.tools.build:gradle:8.1.4'
-    }
-}
-
 rootProject.allprojects {
     repositories {
         google()
@@ -22,17 +11,17 @@ rootProject.allprojects {
 apply plugin: 'com.android.library'
 
 android {
-    compileSdk 34
+    compileSdk 36
 
     buildFeatures.aidl = true
 
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
     }
 
     defaultConfig {
-        minSdkVersion 16
+        minSdkVersion 21
         namespace 'com.senraise.senraise_printer' // Added namespace
     }
 
